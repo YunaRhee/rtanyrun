@@ -1,89 +1,72 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>르탄이 달리기 게임 - 실습 시험지</title>
-    <!--
-    ==============================
-    ====== Customizable CSS ======
-    CSS 변수 사용 대신 직접 값을 넣어 스타일을 변경할 수 있습니다.
-    ==============================
-  -->
     <style>
         /* body styling */
         body {
             background-color: #f0f0f0;
-            /* 배경 색상 */
             font-size: 18px;
-            /* 본문 폰트 크기 */
             line-height: 1.6;
-            /* 본문 줄 높이 */
             margin: 0;
             padding: 20px;
             color: #333;
-            /* 본문 텍스트 색 */
         }
 
-        /* canvas 및 텍스트 요소 */
         canvas {
             display: block;
             margin: 0 auto;
             background-color: #fff;
-            /* 캔버스 배경 */
             border: 1px solid #ccc;
-            /* 캔버스 테두리 */
             border-radius: 12px;
-            /* 캔버스 둥근 모서리 */
         }
 
         #subtitle {
             font-size: 20px;
-            /* 부제목 폰트 크기 */
             text-align: center;
         }
 
         #score {
             font-size: 40px;
-            /* 점수 폰트 크기 */
             text-align: center;
             margin-top: 20px;
             font-weight: bold;
         }
+
+        #pauseButton {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
+</head>
+<body>
+    <p id="subtitle">르탄이와 함께 최고점을 향하여!! 😀</p>
+    <p id="score">현재점수: 0</p>
+    <button id="pauseButton">일시정지</button>
+    <main>
+        <canvas id="canvas"></canvas>
+    </main>
 
-    <!--
-    ======================================
-    ====== Customizable JS Settings ======
-    위 상수들을 수정하여 게임 동작을 커스텀하세요.
-    ======================================
-  -->
     <script>
-        // 캔버스 크기
-        const CANVAS_WIDTH = 800;     // 캔버스 가로 크기
-        const CANVAS_HEIGHT = 500;    // 캔버스 세로 크기
-
-        // 배경 스크롤 속도
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 500;
         const BG_MOVING_SPEED = 3;
-
-        // 러너(르탄이) 설정
         const RUNNER_WIDTH = 100;
         const RUNNER_HEIGHT = 100;
         const RUNNER_START_X = 10;
         const RUNNER_START_Y = 400;
-
-        // 점프 설정
-        const JUMP_SPEED = 3;         // 점프 시 Y값 변화량
-        const MAX_JUMP_HEIGHT = 20;   // 최대 점프 고정 Y위치
-
-        // 장애물 설정
+        const JUMP_SPEED = 3;
+        const MAX_JUMP_HEIGHT = 20;
         const OBSTACLE_WIDTH = 50;
         const OBSTACLE_HEIGHT = 50;
-        const OBSTACLE_FREQUENCY = 90; // 프레임마다 생성 빈도
+        const OBSTACLE_FREQUENCY = 90;
         const OBSTACLE_SPEED = 4;
-        const SCORE_PER_OBSTACLE = 10; // 장애물 당 점수
-        // 음원 및 이미지 경로 설정
+        const SCORE_PER_OBSTACLE = 10;
         const ASSETS = {
             sounds: {
                 jump: './sounds/jump.mp3',
@@ -103,25 +86,11 @@
             }
         };
 
-        // 바통 색상 커스텀
-        const BATON_COLORS = {
-            default: 'green',
-            alternate: 'orange'
-        };
-    </script>
-
-    <!--
-    ==================================
-    ====== Core Game Code (No Edits) ======
-    아래부터는 시험지 기능 검사용 로직이므로 수정하지 말고 학습용으로만 활용하세요.
-    ==================================
-  -->
-    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
             canvas.width = CANVAS_WIDTH;
             canvas.height = CANVAS_HEIGHT;
-            const ctx = canvas.getContext('2d');
 
             let gameStarted = false;
             let gameOver = false;
@@ -129,6 +98,7 @@
             let score = 0;
             let jump = false;
             let bgX = 0;
+            let gamePaused = false;
             const scoreText = document.getElementById('score');
 
             // 오디오 로드
@@ -200,22 +170,25 @@
             function isCollision(a, b) {
                 return !(a.x > b.x + b.width || a.x + a.width < b.x || a.y > b.y + b.height || a.y + a.height < b.y);
             }
-            
+
             function animate() {
                 if (gameOver) {
                     drawGameOverScreen();
                     return;
                 }
+
+                if (gamePaused) return;
+
                 requestAnimationFrame(animate);
                 ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                 timer++;
-            
+
                 backgroundImg(bgX);
                 backgroundImg(bgX + CANVAS_WIDTH);
                 bgX -= BG_MOVING_SPEED;
                 if (bgX < -CANVAS_WIDTH) bgX = 0;
                 bgmSound.play();
-            
+
                 if (timer % OBSTACLE_FREQUENCY === 0) obstacles.push(new Obstacle());
                 obstacles.forEach((obs, idx) => {
                     obs.draw(); obs.x -= OBSTACLE_SPEED;
@@ -226,14 +199,8 @@
                         scoreSound.currentTime = 0;
                         scoreSound.play();
                     }
-                    // 충돌 시 gameOver 상태를 변경하지 않도록 수정
-                    if (isCollision(runner, obs)) {
-                        // gameOver = true; // 이 줄을 삭제하여 충돌 시 게임이 종료되지 않도록 함
-                        // bgmSound.pause();
-                        // defeatSound.play();
-                    }
                 });
-            
+
                 runner.draw();
                 if (jump) {
                     runner.y = Math.max(MAX_JUMP_HEIGHT, runner.y - JUMP_SPEED);
@@ -242,6 +209,17 @@
                 }
             }
 
+            // 일시정지/재개 버튼 처리
+            document.getElementById('pauseButton').addEventListener('click', () => {
+                if (gamePaused) {
+                    gamePaused = false;
+                    animate(); // 게임 재개
+                    document.getElementById('pauseButton').textContent = '일시정지'; // 버튼 텍스트 변경
+                } else {
+                    gamePaused = true;
+                    document.getElementById('pauseButton').textContent = '재개'; // 버튼 텍스트 변경
+                }
+            });
 
             // 이벤트 처리
             document.addEventListener('keydown', e => {
@@ -250,9 +228,11 @@
                     jumpSound.play();
                 }
             });
+
             document.addEventListener('keyup', e => {
                 if (e.code === 'Space') jump = false;
             });
+
             canvas.addEventListener('click', e => {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -264,6 +244,7 @@
                     location.reload();
                 }
             });
+
             canvas.addEventListener('mousemove', e => {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -276,14 +257,5 @@
             });
         });
     </script>
-</head>
-
-<body>
-    <p id="subtitle">르탄이와 함께 최고점을 향하여!! 😀</p>
-    <p id="score">현재점수: 0</p>
-    <main>
-        <canvas id="canvas"></canvas>
-    </main>
 </body>
-
 </html>
