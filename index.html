@@ -86,176 +86,178 @@
             }
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = CANVAS_WIDTH;
-            canvas.height = CANVAS_HEIGHT;
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
 
-            let gameStarted = false;
-            let gameOver = false;
-            let timer = 0;
-            let score = 0;
-            let jump = false;
-            let bgX = 0;
-            let gamePaused = false;
-            const scoreText = document.getElementById('score');
+    let gameStarted = false;
+    let gameOver = false;
+    let timer = 0;
+    let score = 0;
+    let jump = false;
+    let bgX = 0;
+    let gamePaused = false; // 게임 일시정지 상태 변수
+    const scoreText = document.getElementById('score');
 
-            // 오디오 로드
-            const jumpSound = new Audio(ASSETS.sounds.jump);
-            const bgmSound = new Audio(ASSETS.sounds.bgm);
-            const scoreSound = new Audio(ASSETS.sounds.score);
-            const defeatSound = new Audio(ASSETS.sounds.defeat);
+    // 오디오 로드
+    const jumpSound = new Audio(ASSETS.sounds.jump);
+    const bgmSound = new Audio(ASSETS.sounds.bgm);
+    const scoreSound = new Audio(ASSETS.sounds.score);
+    const defeatSound = new Audio(ASSETS.sounds.defeat);
 
-            // 이미지 로드
-            const bgImage = new Image(); bgImage.src = ASSETS.images.background;
-            const startImage = new Image(); startImage.src = ASSETS.images.gameStart;
-            const gameoverImage = new Image(); gameoverImage.src = ASSETS.images.gameOver;
-            const restartImage = new Image(); restartImage.src = ASSETS.images.restart;
-            const runnerAImage = new Image(); runnerAImage.src = ASSETS.images.runnerA;
-            const runnerBImage = new Image(); runnerBImage.src = ASSETS.images.runnerB;
-            const crashImage = new Image(); crashImage.src = ASSETS.images.runnerCrash;
-            const obstacleImage = new Image(); obstacleImage.src = ASSETS.images.obstacle;
+    // 이미지 로드
+    const bgImage = new Image(); bgImage.src = ASSETS.images.background;
+    const startImage = new Image(); startImage.src = ASSETS.images.gameStart;
+    const gameoverImage = new Image(); gameoverImage.src = ASSETS.images.gameOver;
+    const restartImage = new Image(); restartImage.src = ASSETS.images.restart;
+    const runnerAImage = new Image(); runnerAImage.src = ASSETS.images.runnerA;
+    const runnerBImage = new Image(); runnerBImage.src = ASSETS.images.runnerB;
+    const crashImage = new Image(); crashImage.src = ASSETS.images.runnerCrash;
+    const obstacleImage = new Image(); obstacleImage.src = ASSETS.images.obstacle;
 
-            const runner = {
-                x: RUNNER_START_X,
-                y: RUNNER_START_Y,
-                width: RUNNER_WIDTH,
-                height: RUNNER_HEIGHT,
-                draw() {
-                    if (gameOver) {
-                        ctx.drawImage(crashImage, this.x, this.y, this.width, this.height);
-                    } else {
-                        const frame = (timer % 60 > 30) ? runnerAImage : runnerBImage;
-                        ctx.drawImage(frame, this.x, this.y, this.width, this.height);
-                    }
-                }
-            };
-
-            class Obstacle {
-                constructor() {
-                    this.x = CANVAS_WIDTH;
-                    this.y = Math.floor(Math.random() * (CANVAS_HEIGHT - OBSTACLE_HEIGHT - 30)) + 30;
-                    this.width = OBSTACLE_WIDTH;
-                    this.height = OBSTACLE_HEIGHT;
-                }
-                draw() {
-                    ctx.drawImage(obstacleImage, this.x, this.y, this.width, this.height);
-                }
+    const runner = {
+        x: RUNNER_START_X,
+        y: RUNNER_START_Y,
+        width: RUNNER_WIDTH,
+        height: RUNNER_HEIGHT,
+        draw() {
+            if (gameOver) {
+                ctx.drawImage(crashImage, this.x, this.y, this.width, this.height);
+            } else {
+                const frame = (timer % 60 > 30) ? runnerAImage : runnerBImage;
+                ctx.drawImage(frame, this.x, this.y, this.width, this.height);
             }
+        }
+    };
 
-            const obstacles = [];
+    class Obstacle {
+        constructor() {
+            this.x = CANVAS_WIDTH;
+            this.y = Math.floor(Math.random() * (CANVAS_HEIGHT - OBSTACLE_HEIGHT - 30)) + 30;
+            this.width = OBSTACLE_WIDTH;
+            this.height = OBSTACLE_HEIGHT;
+        }
+        draw() {
+            ctx.drawImage(obstacleImage, this.x, this.y, this.width, this.height);
+        }
+    }
 
-            function backgroundImg(x) {
-                ctx.drawImage(bgImage, x, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const obstacles = [];
+
+    function backgroundImg(x) {
+        ctx.drawImage(bgImage, x, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+
+    function drawStartScreen() {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        backgroundImg(0);
+        const w = 473, h = 316;
+        ctx.drawImage(startImage, (CANVAS_WIDTH - w) / 2, (CANVAS_HEIGHT - h) / 2, w, h);
+    }
+
+    function drawGameOverScreen() {
+        ctx.drawImage(gameoverImage, (CANVAS_WIDTH - 200) / 2, (CANVAS_HEIGHT - 100) / 2, 200, 100);
+        ctx.drawImage(restartImage, (CANVAS_WIDTH - 100) / 2, (CANVAS_HEIGHT + 50) / 2, 100, 50);
+    }
+
+    Promise.all([
+        new Promise(r => bgImage.onload = r),
+        new Promise(r => startImage.onload = r)
+    ]).then(drawStartScreen);
+
+    function isCollision(a, b) {
+        return !(a.x > b.x + b.width || a.x + a.width < b.x || a.y > b.y + b.height || a.y + a.height < b.y);
+    }
+
+    function animate() {
+        if (gameOver) {
+            drawGameOverScreen();
+            return;
+        }
+
+        if (gamePaused) return; // 게임이 일시정지된 경우 애니메이션을 멈추고 리턴
+
+        requestAnimationFrame(animate);
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        timer++;
+
+        backgroundImg(bgX);
+        backgroundImg(bgX + CANVAS_WIDTH);
+        bgX -= BG_MOVING_SPEED;
+        if (bgX < -CANVAS_WIDTH) bgX = 0;
+        bgmSound.play();
+
+        if (timer % OBSTACLE_FREQUENCY === 0) obstacles.push(new Obstacle());
+        obstacles.forEach((obs, idx) => {
+            obs.draw(); obs.x -= OBSTACLE_SPEED;
+            if (obs.x < -OBSTACLE_WIDTH) {
+                obstacles.splice(idx, 1);
+                score += SCORE_PER_OBSTACLE;
+                scoreText.textContent = '현재점수: ' + score;
+                scoreSound.currentTime = 0;
+                scoreSound.play();
             }
-
-            function drawStartScreen() {
-                ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                backgroundImg(0);
-                const w = 473, h = 316;
-                ctx.drawImage(startImage, (CANVAS_WIDTH - w) / 2, (CANVAS_HEIGHT - h) / 2, w, h);
-            }
-
-            function drawGameOverScreen() {
-                ctx.drawImage(gameoverImage, (CANVAS_WIDTH - 200) / 2, (CANVAS_HEIGHT - 100) / 2, 200, 100);
-                ctx.drawImage(restartImage, (CANVAS_WIDTH - 100) / 2, (CANVAS_HEIGHT + 50) / 2, 100, 50);
-            }
-
-            Promise.all([
-                new Promise(r => bgImage.onload = r),
-                new Promise(r => startImage.onload = r)
-            ]).then(drawStartScreen);
-
-            function isCollision(a, b) {
-                return !(a.x > b.x + b.width || a.x + a.width < b.x || a.y > b.y + b.height || a.y + a.height < b.y);
-            }
-
-            function animate() {
-                if (gameOver) {
-                    drawGameOverScreen();
-                    return;
-                }
-
-                if (gamePaused) return;
-
-                requestAnimationFrame(animate);
-                ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                timer++;
-
-                backgroundImg(bgX);
-                backgroundImg(bgX + CANVAS_WIDTH);
-                bgX -= BG_MOVING_SPEED;
-                if (bgX < -CANVAS_WIDTH) bgX = 0;
-                bgmSound.play();
-
-                if (timer % OBSTACLE_FREQUENCY === 0) obstacles.push(new Obstacle());
-                obstacles.forEach((obs, idx) => {
-                    obs.draw(); obs.x -= OBSTACLE_SPEED;
-                    if (obs.x < -OBSTACLE_WIDTH) {
-                        obstacles.splice(idx, 1);
-                        score += SCORE_PER_OBSTACLE;
-                        scoreText.textContent = '현재점수: ' + score;
-                        scoreSound.currentTime = 0;
-                        scoreSound.play();
-                    }
-                });
-
-                runner.draw();
-                if (jump) {
-                    runner.y = Math.max(MAX_JUMP_HEIGHT, runner.y - JUMP_SPEED);
-                } else {
-                    runner.y = Math.min(RUNNER_START_Y, runner.y + JUMP_SPEED);
-                }
-            }
-
-            // 일시정지/재개 버튼 처리
-            document.getElementById('pauseButton').addEventListener('click', () => {
-                if (gamePaused) {
-                    gamePaused = false;
-                    animate(); // 게임 재개
-                    document.getElementById('pauseButton').textContent = '일시정지'; // 버튼 텍스트 변경
-                } else {
-                    gamePaused = true;
-                    document.getElementById('pauseButton').textContent = '재개'; // 버튼 텍스트 변경
-                }
-            });
-
-            // 이벤트 처리
-            document.addEventListener('keydown', e => {
-                if (e.code === 'Space' && !jump) {
-                    jump = true;
-                    jumpSound.play();
-                }
-            });
-
-            document.addEventListener('keyup', e => {
-                if (e.code === 'Space') jump = false;
-            });
-
-            canvas.addEventListener('click', e => {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                if (!gameStarted) {
-                    gameStarted = true;
-                    animate();
-                } else if (gameOver && x > (CANVAS_WIDTH - 100) / 2 && x < (CANVAS_WIDTH + 100) / 2 && y > (CANVAS_HEIGHT + 50) / 2 && y < (CANVAS_HEIGHT + 100) / 2) {
-                    location.reload();
-                }
-            });
-
-            canvas.addEventListener('mousemove', e => {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                if ((!gameStarted) || (gameOver && x > (CANVAS_WIDTH - 100) / 2 && x < (CANVAS_WIDTH + 100) / 2 && y > (CANVAS_HEIGHT + 50) / 2 && y < (CANVAS_HEIGHT + 100) / 2)) {
-                    canvas.style.cursor = 'pointer';
-                } else {
-                    canvas.style.cursor = 'default';
-                }
-            });
         });
+
+        runner.draw();
+        if (jump) {
+            runner.y = Math.max(MAX_JUMP_HEIGHT, runner.y - JUMP_SPEED);
+        } else {
+            runner.y = Math.min(RUNNER_START_Y, runner.y + JUMP_SPEED);
+        }
+    }
+
+    // 일시정지/재개 버튼 처리
+    document.getElementById('pauseButton').addEventListener('click', () => {
+        if (gamePaused) {
+            gamePaused = false;
+            animate(); // 게임 재개
+            document.getElementById('pauseButton').textContent = '일시정지'; // 버튼 텍스트 변경
+        } else {
+            gamePaused = true; // 게임 일시정지
+            document.getElementById('pauseButton').textContent = '재개'; // 버튼 텍스트 변경
+        }
+    });
+
+    // 이벤트 처리
+    document.addEventListener('keydown', e => {
+        // 스페이스바가 눌렸을 때 점프만 실행되게 하고 일시정지 상태는 변경되지 않도록 처리
+        if (e.code === 'Space' && !jump && !gamePaused) {
+            jump = true;
+            jumpSound.play();
+        }
+    });
+
+    document.addEventListener('keyup', e => {
+        if (e.code === 'Space') jump = false;
+    });
+
+    canvas.addEventListener('click', e => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (!gameStarted) {
+            gameStarted = true;
+            animate();
+        } else if (gameOver && x > (CANVAS_WIDTH - 100) / 2 && x < (CANVAS_WIDTH + 100) / 2 && y > (CANVAS_HEIGHT + 50) / 2 && y < (CANVAS_HEIGHT + 100) / 2) {
+            location.reload();
+        }
+    });
+
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if ((!gameStarted) || (gameOver && x > (CANVAS_WIDTH - 100) / 2 && x < (CANVAS_WIDTH + 100) / 2 && y > (CANVAS_HEIGHT + 50) / 2 && y < (CANVAS_HEIGHT + 100) / 2)) {
+            canvas.style.cursor = 'pointer';
+        } else {
+            canvas.style.cursor = 'default';
+        }
+    });
+});
+
     </script>
 </body>
 </html>
