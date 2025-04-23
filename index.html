@@ -16,7 +16,7 @@
         body {
             background-color: #f0f0f0;
             /* 배경 색상 */
-            font-size: 16px;
+            font-size: 18px;
             /* 본문 폰트 크기 */
             line-height: 1.6;
             /* 본문 줄 높이 */
@@ -200,7 +200,7 @@
             function isCollision(a, b) {
                 return !(a.x > b.x + b.width || a.x + a.width < b.x || a.y > b.y + b.height || a.y + a.height < b.y);
             }
-
+            
             function animate() {
                 if (gameOver) {
                     drawGameOverScreen();
@@ -209,13 +209,13 @@
                 requestAnimationFrame(animate);
                 ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                 timer++;
-
+            
                 backgroundImg(bgX);
                 backgroundImg(bgX + CANVAS_WIDTH);
                 bgX -= BG_MOVING_SPEED;
                 if (bgX < -CANVAS_WIDTH) bgX = 0;
                 bgmSound.play();
-
+            
                 if (timer % OBSTACLE_FREQUENCY === 0) obstacles.push(new Obstacle());
                 obstacles.forEach((obs, idx) => {
                     obs.draw(); obs.x -= OBSTACLE_SPEED;
@@ -226,13 +226,14 @@
                         scoreSound.currentTime = 0;
                         scoreSound.play();
                     }
+                    // 충돌 시 gameOver 상태를 변경하지 않도록 수정
                     if (isCollision(runner, obs)) {
-                        gameOver = true;
-                        bgmSound.pause();
-                        defeatSound.play();
+                        // gameOver = true; // 이 줄을 삭제하여 충돌 시 게임이 종료되지 않도록 함
+                        // bgmSound.pause();
+                        // defeatSound.play();
                     }
                 });
-
+            
                 runner.draw();
                 if (jump) {
                     runner.y = Math.max(MAX_JUMP_HEIGHT, runner.y - JUMP_SPEED);
@@ -240,6 +241,7 @@
                     runner.y = Math.min(RUNNER_START_Y, runner.y + JUMP_SPEED);
                 }
             }
+
 
             // 이벤트 처리
             document.addEventListener('keydown', e => {
